@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "motion/react";
 import { 
-  X, Film, Clock, Calendar, Globe, Award, Users, Building, Tag
+  X, Film, Clock, Calendar, Globe, Award, Users, Building, Tag, Sparkles
 } from "lucide-react";
 import { MovieInfo } from "../types";
 
@@ -18,6 +18,25 @@ export const MovieDetailPanel: React.FC<MovieDetailPanelProps> = ({
   onClose, 
   isDark 
 }) => {
+  // States for the AI Review generator
+  const [kw1, setKw1] = useState("");
+  const [kw2, setKw2] = useState("");
+  const [kw3, setKw3] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [reviewResult, setReviewResult] = useState("");
+  const [reviewError, setReviewError] = useState("");
+
+  // Reset keywords and result when the active movie changes
+  React.useEffect(() => {
+    if (movie) {
+      setKw1("");
+      setKw2("");
+      setKw3("");
+      setReviewResult("");
+      setReviewError("");
+    }
+  }, [movie?.movieCd]);
+
   if (isLoading) {
     return (
       <div className={`w-full h-full flex flex-col items-center justify-center p-8 text-center min-h-[400px] border-2 ${
@@ -71,6 +90,47 @@ export const MovieDetailPanel: React.FC<MovieDetailPanelProps> = ({
       return "bg-rose-500/10 text-rose-500 border-rose-500/30";
     }
     return "bg-stone-500/10 text-stone-500 border-stone-500/30";
+  };
+
+  const handleGenerateReview = async () => {
+    if (!movie) return;
+    if (!kw1.trim() || !kw2.trim() || !kw3.trim()) {
+      setReviewError("세 개의 키워드를 모두 채워주세요.");
+      return;
+    }
+
+    setIsGenerating(true);
+    setReviewError("");
+    setReviewResult("");
+
+    try {
+      const response = await fetch("/api/review", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          movieNm: movie.movieNm,
+          movieNmEn: movie.movieNmEn,
+          directors: movie.directors,
+          genres: movie.genres,
+          showTm: movie.showTm,
+          keywords: [kw1, kw2, kw3],
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "감상평 생성에 실패했습니다.");
+      }
+
+      setReviewResult(data.review);
+    } catch (err: any) {
+      console.error("Failed to generate movie review:", err);
+      setReviewError(err.message || "오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -190,6 +250,176 @@ export const MovieDetailPanel: React.FC<MovieDetailPanelProps> = ({
               {movie.typeNm || "LONG"}
             </div>
           </div>
+        </div>
+
+        {/* AI Keyword Review Generator - Retro Thermal Printer Style */}
+        <div className={`p-5 border-2 ${
+          isDark 
+            ? "border-amber-400/90 bg-zinc-950/40 text-zinc-100" 
+            : "border-stone-950 bg-[#FCFAF7] text-stone-950 shadow-[4px_4px_0px_0px_#1c1917]"
+        }`}>
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
+            <h4 className="text-xs font-black tracking-wider font-mono uppercase">
+              AI REVIEW STAMP // 감상평 자동 작성소
+            </h4>
+          </div>
+          
+          <p className="text-[11px] mb-4 opacity-80 leading-relaxed font-mono">
+            원하는 세 개의 핵심 감상 키워드를 입력하시면, 인공지능이 영화 프로덕션 명세서와 인물 DB를 활용해 맞춤형 극장 감상평을 완벽하게 출력합니다.
+          </p>
+
+          {/* Quick recommendations */}
+          <div className="mb-4">
+            <span className="block text-[9px] font-mono font-bold mb-1.5 uppercase opacity-65">
+              QUICK STAMP KEYWORDS // 추천 감상 키워드:
+            </span>
+            <div className="flex flex-wrap gap-1">
+              {["감동눈물", "역대급연기", "스토리완벽", "충격반전", "꿀잼보장", "인생명작", "킬링타임", "황홀한영상", "몰입감최고"].map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => {
+                    if (!kw1) setKw1(tag);
+                    else if (!kw2) setKw2(tag);
+                    else if (!kw3) setKw3(tag);
+                  }}
+                  className={`text-[9px] font-mono px-2 py-0.5 border cursor-pointer transition-colors ${
+                    isDark 
+                      ? "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-amber-400 hover:text-white" 
+                      : "border-stone-300 bg-white text-stone-700 hover:border-stone-950 hover:bg-stone-50"
+                  }`}
+                >
+                  +{tag}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Keyword Slot Inputs */}
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="space-y-1">
+              <label className="block text-[8px] font-mono font-black opacity-60">KEYWORD 1</label>
+              <input 
+                type="text" 
+                placeholder="예: 감동"
+                value={kw1}
+                onChange={(e) => setKw1(e.target.value)}
+                maxLength={10}
+                className={`w-full px-2 py-1 border-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                  isDark ? "bg-zinc-900 border-zinc-800 text-white" : "bg-white border-stone-400 text-stone-950"
+                }`}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-[8px] font-mono font-black opacity-60">KEYWORD 2</label>
+              <input 
+                type="text" 
+                placeholder="예: 연기력"
+                value={kw2}
+                onChange={(e) => setKw2(e.target.value)}
+                maxLength={10}
+                className={`w-full px-2 py-1 border-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                  isDark ? "bg-zinc-900 border-zinc-800 text-white" : "bg-white border-stone-400 text-stone-950"
+                }`}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-[8px] font-mono font-black opacity-60">KEYWORD 3</label>
+              <input 
+                type="text" 
+                placeholder="예: 인생작"
+                value={kw3}
+                onChange={(e) => setKw3(e.target.value)}
+                maxLength={10}
+                className={`w-full px-2 py-1 border-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                  isDark ? "bg-zinc-900 border-zinc-800 text-white" : "bg-white border-stone-400 text-stone-950"
+                }`}
+              />
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleGenerateReview}
+              disabled={isGenerating || !kw1.trim() || !kw2.trim() || !kw3.trim()}
+              className={`flex-1 py-2 border-2 font-mono font-black text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                isGenerating || !kw1.trim() || !kw2.trim() || !kw3.trim()
+                  ? "opacity-50 cursor-not-allowed bg-zinc-800 border-zinc-800 text-zinc-500" 
+                  : isDark
+                    ? "bg-amber-400 text-black border-amber-400 hover:bg-amber-300" 
+                    : "bg-stone-950 text-white border-stone-950 hover:bg-stone-800"
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              {isGenerating ? "PRINTING REVIEW..." : "WRITE AI REVIEW // 감상평 인쇄"}
+            </button>
+            {(kw1 || kw2 || kw3) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setKw1("");
+                  setKw2("");
+                  setKw3("");
+                }}
+                className={`px-3 py-2 border-2 font-mono text-xs uppercase cursor-pointer transition-colors ${
+                  isDark 
+                    ? "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white" 
+                    : "border-stone-950 bg-white hover:bg-stone-100 text-stone-950"
+                }`}
+              >
+                RESET
+              </button>
+            )}
+          </div>
+
+          {/* Error Feed */}
+          {reviewError && (
+            <div className="mt-3 text-red-500 text-xs font-mono">
+              * ER-CODE-AI: {reviewError}
+            </div>
+          )}
+
+          {/* AI Output Ribbon */}
+          {(isGenerating || reviewResult) && (
+            <div className="mt-4 relative">
+              {/* Receipt cutoff border line */}
+              <div className={`absolute top-0 left-0 right-0 h-[2px] border-t-2 border-dashed ${
+                isDark ? "border-zinc-800" : "border-stone-400"
+              }`} />
+              
+              <div className={`pt-4 p-4 font-mono text-xs border ${
+                isDark 
+                  ? "bg-zinc-950 border-zinc-800 text-zinc-100" 
+                  : "bg-stone-50 border-stone-300 text-stone-950 shadow-inner"
+              }`}>
+                {isGenerating ? (
+                  <div className="py-5 text-center space-y-2">
+                    <div className="inline-block animate-spin rounded-full h-4.5 w-4.5 border-2 border-amber-500 border-t-transparent" />
+                    <p className="text-[9px] tracking-widest uppercase animate-pulse">
+                      THERMAL TISSUE PRINTING AI SPEC...
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3.5">
+                    <div className="flex justify-between items-center text-[8px] border-b pb-1 opacity-50">
+                      <span>STAMP SERVICE // CO-PILOT CRITIQUE</span>
+                      <span>{new Date().toLocaleDateString()}</span>
+                    </div>
+                    {/* The generated response message */}
+                    <p className="leading-relaxed whitespace-pre-line font-sans text-sm tracking-tight text-center italic py-2">
+                      "{reviewResult}"
+                    </p>
+                    <div className="border-t pt-2 flex justify-center text-[8px] font-bold tracking-[0.2em] opacity-40">
+                      <span>* GEMINI 3.5 SEAMLESS INTEGRATION *</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Directors Block */}
